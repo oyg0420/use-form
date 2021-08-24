@@ -24,14 +24,14 @@ type SubmitFailedHandler<FormValues> = (
   erros: FormStates<FormValues>["errors"]
 ) => void;
 
-type FormOption<FormValues> = {
-  [Property in keyof FormValues]: Option;
-};
-
 type Option = {
   rules?: {
     required?: string;
   };
+};
+
+type FormFiels<FormValues> = {
+  [Property in keyof FormValues]: { ref: HTMLInputElement; option: Option };
 };
 
 const useForm = <FormValues>({ defaultValues }: FormTypes<FormValues>) => {
@@ -42,8 +42,7 @@ const useForm = <FormValues>({ defaultValues }: FormTypes<FormValues>) => {
   });
 
   const formStatesRef = useRef<FormStates<FormValues>>(formStates);
-  const formErrorsRef = useRef<FormErrors<FormValues> | undefined>();
-  const formOptionRef = useRef<FormOption<FormValues> | undefined>();
+  const formFieldsRef = useRef<FormFiels<FormValues | undefined>>();
 
   const handleSubmit =
     (
@@ -66,29 +65,32 @@ const useForm = <FormValues>({ defaultValues }: FormTypes<FormValues>) => {
     value: string,
     name: Partial<keyof FormValues>
   ) => {
-    formStatesRef.current.values = {
-      ...formStatesRef.current.values,
-      [name]: value,
-    };
+    if (formFieldsRef.current) {
+      formFieldsRef.current[name].ref.value = value;
+    }
   };
 
   const getValue = (name: Partial<keyof FormValues>) => {
-    return formStatesRef.current.values[name];
+    if (formFieldsRef.current) {
+      return formFieldsRef.current[name].ref.value;
+    }
+    return undefined;
   };
 
   const register = (name: Partial<keyof FormValues>, option?: Option) => {
-    if (formOptionRef.current) {
-      formOptionRef.current = {
-        ...formOptionRef.current,
-        [name]: option,
-      };
-    } else {
-      formOptionRef.current = {
-        [name]: option,
-      } as FormOption<FormValues>;
-    }
-
     return {
+      ref: (ref: HTMLInputElement) => {
+        if (formFieldsRef.current) {
+          formFieldsRef.current = {
+            ...formFieldsRef.current,
+            [name]: { ref, option },
+          };
+        } else {
+          formFieldsRef.current = {
+            [name]: { ref, option },
+          } as FormFiels<FormValues>;
+        }
+      },
       defaultValue: formStatesRef.current.values[name],
       onChange: (event: ChangeEvent<HTMLInputElement>) =>
         handleValueChange(event.target.value, name),
